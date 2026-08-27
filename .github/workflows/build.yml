@@ -87,12 +87,23 @@ jobs:
 
     - name: Setup more Swap (for LTO)
       run: |
-        # thejerrybao/setup-swap-space action repo was deleted (404), fall back to raw shell
-        sudo fallocate -l 16G /swapfile 2>/dev/null || sudo dd if=/dev/zero of=/swapfile bs=1M count=16384
-        sudo chmod 600 /swapfile
-        sudo mkswap /swapfile
-        sudo swapon /swapfile
+        # thejerrybao/setup-swap-space action repo was deleted (404), fall back to raw shell.
+        # Runner 自带 /swapfile 已挂载（Text file busy 坑），用 /swapfile2 避免冲突。
+        echo "=== 当前 swap 状态 ==="
+        swapon --show 2>/dev/null || true
         free -h
+        SWAP_TOTAL=$(free -b | awk '/Swap:/{print $2}')
+        if [ "${SWAP_TOTAL:-0}" -lt $((8*1024*1024*1024)) ]; then
+          echo "创建额外 8G swap (/swapfile2)..."
+          sudo fallocate -l 8G /swapfile2 2>/dev/null || sudo dd if=/dev/zero of=/swapfile2 bs=1M count=8192 status=progress
+          sudo chmod 600 /swapfile2
+          sudo mkswap /swapfile2
+          sudo swapon /swapfile2 || echo "swapon 失败（不阻塞编译）"
+        else
+          echo "已有 ≥8G swap，跳过创建"
+        fi
+        free -h
+        echo "swap 检查完成（不阻塞编译）"
 
     - name: Setup Build Environment
       uses: ./.github/actions/setup-build-environment
