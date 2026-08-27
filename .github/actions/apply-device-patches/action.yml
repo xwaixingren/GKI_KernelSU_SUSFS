@@ -36,3 +36,15 @@ runs:
       run: |
         SYMBOL_LIST=android/abi_gki_aarch64_xiaomi
         echo "device_find_any_child" >> $SYMBOL_LIST
+    - name: Xiaomi 14 (SM8650) CPU voltage offset (-5% undervolt, experimental)
+      if: ${{ inputs.version == 'android14-6.1' }}
+      shell: bash
+      working-directory: ${{ github.workspace }}/kernel/common
+      run: |
+        PATCH="${{ github.workspace }}/kernel_patches/common/qcom_cpufreq_uv_offset.patch"
+        if patch -p1 -F 3 --dry-run < "$PATCH"; then
+          patch -p1 -F 3 --no-backup-if-mismatch < "$PATCH"
+          echo "OK: qcom-cpufreq undervolt patch applied"
+        else
+          echo "WARN: qcom-cpufreq undervolt patch dry-run failed - skipping"
+        fi
